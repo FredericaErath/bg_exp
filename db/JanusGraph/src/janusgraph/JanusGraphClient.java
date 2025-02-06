@@ -172,7 +172,6 @@ public class JanusGraphClient extends DB{
 				String cleaned = value.replace("'", "\\'");
 				gremlinQuery.append(".property('").append(entry.getKey().toLowerCase()).append("', '").append(cleaned).append("')");
 			}
-			System.out.println("Executing: " + gremlinQuery);
 			client.submit(gremlinQuery.toString()).all().get();
 			return SUCCESS;
 		} catch (Exception e) {

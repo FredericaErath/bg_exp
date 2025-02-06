@@ -3,9 +3,9 @@
 # Fields for populating the user table.
 usercount=10000
 useroffset=0
-resourcecountperuser=10
-friendcountperuser=4
-confperc=1
+resourcecountperuser=0
+friendcountperuser=0
+confperc=0
 
 userworkload=edu.usc.bg.workloads.UserWorkload
 friendshipworkload=edu.usc.bg.workloads.FriendshipWorkload

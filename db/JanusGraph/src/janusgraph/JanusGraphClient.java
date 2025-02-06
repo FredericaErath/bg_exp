@@ -168,8 +168,6 @@ public class JanusGraphClient extends DB{
 				if(entry.getKey().equalsIgnoreCase("pic") || entry.getKey().equalsIgnoreCase("tpic") ) {
 					continue;
 				}
-				System.out.println(entry.getKey());
-				System.out.println(entry.getValue().toString());
 				String value = entry.getValue().toString();
 				String cleaned = value.replace("'", "\\'");
 				gremlinQuery.append(".property('").append(entry.getKey().toLowerCase()).append("', '").append(cleaned).append("')");

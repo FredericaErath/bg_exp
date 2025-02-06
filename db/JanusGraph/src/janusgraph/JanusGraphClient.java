@@ -53,7 +53,7 @@ public class JanusGraphClient extends DB{
 					.addRegistry(JanusGraphIoRegistry.instance())
 					.create();
 			Cluster cluster = Cluster.build()
-					.addContactPoint("128.110.96.140")
+					.addContactPoint("128.110.96.123")
 					.port(8182)
 					.serializer(new GraphBinaryMessageSerializerV1(registry))
 					.maxContentLength(524288)

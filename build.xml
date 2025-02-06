@@ -2,7 +2,7 @@
 <project name="bg" default="compile" basedir=".">
 
     <javac source="1.8" target="1.8"/>
-    <property name="src.dir"     value="src"/><javac source="1.8" target="1.8"/>
+    <property name="src.dir"     value="src"/>
     <property name="lib.dir"     value="lib"/>
     <property name="doc.dir"     value="doc"/>
 
@@ -117,7 +117,7 @@
         </path>
 
         <mkdir dir="${classes.dir}"/>
-        <javac includeantruntime="false" srcdir="${db.dir}/src" destdir="${classes.dir}" classpathref="dbclasspath" deprecation="on">
+        <javac includeantruntime="false" srcdir="${db.dir}/src" destdir="${classes.dir}" classpathref="dbclasspath" deprecation="on" source="1.8" target="1.8">
             <compilerarg value="-Xlint:unchecked"/>
         </javac>
         <antcall target="makejar"/>

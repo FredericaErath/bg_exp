@@ -1,4 +1,4 @@
-hosts: [128.110.96.140]
+hosts: [128.110.96.123]
 port: 8182
 serializer: { 
     className: org.apache.tinkerpop.gremlin.util.ser.GraphBinaryMessageSerializerV1,

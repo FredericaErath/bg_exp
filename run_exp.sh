@@ -52,8 +52,8 @@ for populateDB in "${populateDB_variants[@]}"; do
 
         # 监控日志，检测 "Visualization thread has Stopped..."
         while sleep 2; do
-            if grep -q "Visualization thread has Stopped..." tmp_output.log; then
-                echo "Detected Visualization thread has Stopped... - Killing process $PID"
+            if grep -q "Visualization thread has Stopped" tmp_output.log; then
+                echo "Detected Visualization thread has Stopped - Killing process $PID"
                 kill -9 "$PID"
 
                 # 记录倒数第三行

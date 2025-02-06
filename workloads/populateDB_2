@@ -1,7 +1,7 @@
 # This is the workload for the user table.
 
 # Fields for populating the user table.
-usercount=10000
+usercount=10
 useroffset=0
 resourcecountperuser=0
 friendcountperuser=0

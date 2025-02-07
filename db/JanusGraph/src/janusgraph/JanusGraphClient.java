@@ -1,14 +1,14 @@
-/**                                                                                                                                                                                
+/**
  * Copyright (c) 2012 USC Database Laboratory All rights reserved. 
  *
  * Authors:  Sumita Barahmand and Shahram Ghandeharizadeh                                                                                                                            
- *                                                                                                                                                                                 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you                                                                                                             
  * may not use this file except in compliance with the License. You                                                                                                                
  * may obtain a copy of the License at                                                                                                                                             
- *                                                                                                                                                                                 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0                                                                                                                                      
- *                                                                                                                                                                                 
+ *
  * Unless required by applicable law or agreed to in writing, software                                                                                                             
  * distributed under the License is distributed on an "AS IS" BASIS,                                                                                                               
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or                                                                                                                 
@@ -28,7 +28,6 @@ import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.Result;
 import org.apache.tinkerpop.gremlin.structure.io.binary.TypeSerializerRegistry;
 import org.apache.tinkerpop.gremlin.util.ser.GraphBinaryMessageSerializerV1;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.apache.tinkerpop.gremlin.driver.ResultSet;
 import org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry;
 
@@ -208,7 +207,7 @@ public class JanusGraphClient extends DB{
 			Object existingStatus = client.submit(checkExistingEdge).one().getObject();
 			if (existingStatus != null) {
 				System.err.println(inviterID + " -> " + inviteeID + " Friendship already exists with status: " + existingStatus);
-				return ERROR;
+				return SUCCESS;
 			}
 			String createFriendRequest = "g.V(" + inviterVertexId + ").addE('friendship').to(__.V(" + inviteeVertexId + "))" +
 					".property('status', 'pending')";
@@ -235,7 +234,7 @@ public class JanusGraphClient extends DB{
 
 			if (fromVertexId != null && toVertexId != null) {
 				String createEdge = "g.V(" + fromVertexId + ").addE('friendship').to(__.V(" + toVertexId + "))" +
-						".property('status', 'friendship')";
+						".property('status', 'friend')";
 				System.out.println(createEdge);
 				client.submit(createEdge).all().get();
 				return SUCCESS;
@@ -258,13 +257,14 @@ public class JanusGraphClient extends DB{
 					".where(__.inV().has('userid', " + inviteeID + ")).has('status', 'pending').id().tryNext().orElse(null)";
 
 			System.out.println(checkEdge);
-			String edgeId = client.submit(checkEdge).one().getObject().toString();
+			Object edgeId = client.submit(checkEdge).one().getObject();
 			if (edgeId == null) {
-				System.out.println("No pendingFriendship edge found.");
-				return ERROR;
+				System.out.println("AcceptFriend action No pendingFriendship edge found.");
+				return SUCCESS;
 			}
+			String Id = edgeId.toString();
 
-			String updateEdge = "g.E(" + "'" + edgeId + "'" + ").property('status', 'friend')";
+			String updateEdge = "g.E(" + "'" + Id + "'" + ").property('status', 'friend')";
 			System.out.println(updateEdge);
 			client.submit(updateEdge).all().get();
 
@@ -294,8 +294,8 @@ public class JanusGraphClient extends DB{
 
 			String edgeId = (result != null && result.getObject() != null) ? result.getString() : null;
 			if (edgeId == null) {
-				System.out.println("No pendingFriendship edge found.");
-				return ERROR;
+				System.out.println("RejectFriend action No pendingFriendship edge found.");
+				return SUCCESS;
 			}
 
 			// update as rejected
@@ -339,7 +339,6 @@ public class JanusGraphClient extends DB{
 		long friendCount = client.submit(queryFriendCount).one().getLong();
 		result.put("pendingcount", new StringByteIterator(String.valueOf(pendingFriendCount)));
 		result.put("friendcount", new StringByteIterator(String.valueOf(friendCount)));
-		System.out.println(result);
 
 		return SUCCESS;
 	} catch (Exception e) {
@@ -382,9 +381,10 @@ public class JanusGraphClient extends DB{
 		try {
 			String query = "g.V().has('userid', " + profileOwnerID + ").bothE('friendship')" +
 					".has('status', 'friend').otherV().valueMap().toList()";
+			List<Result> res = client.submit(query).all().get();
 
-			for (Object friend : client.submit(query).all().get()) {
-				Map<String, Object> friendData = (Map<String, Object>) friend;
+			for (Result friend : res) {
+				Map<String, Object> friendData = (Map<String, Object>) friend.getObject();
 				HashMap<String, ByteIterator> friendMap = new HashMap<>();
 				friendData.forEach((key, value) -> friendMap.put(key, new StringByteIterator(value.toString())));
 				result.add(friendMap);
@@ -403,9 +403,10 @@ public class JanusGraphClient extends DB{
 		try {
 			String query = "g.V().has('userid', " + profileOwnerID + ").inE('friendship')" +
 					".has('status', 'pending').outV().valueMap().toList()";
+			List<Result> res = client.submit(query).all().get();
 
-			for (Object friend : client.submit(query).all().get()) {
-				Map<String, Object> friendData = (Map<String, Object>) friend;
+			for (Result friend : res) {
+				Map<String, Object> friendData = (Map<String, Object>) friend.getObject();
 				HashMap<String, ByteIterator> friendMap = new HashMap<>();
 				friendData.forEach((key, value) -> friendMap.put(key, new StringByteIterator(value.toString())));
 				results.add(friendMap);

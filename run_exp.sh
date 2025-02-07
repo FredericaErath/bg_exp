@@ -21,9 +21,22 @@ for i in "${!populateDB_variants[@]}"; do
     populateDB="${populateDB_variants[$i]}"
     ReadOnlyActions="${ReadOnlyActions_variants[$i]}"
 
+    # 读取 ReadOnlyActions_i 文件中的 operationcount
+    operationcount_file="workloads/$ReadOnlyActions"
+    if [ ! -f "$operationcount_file" ]; then
+        echo "Error: $operationcount_file not found!" | tee -a "$LOG_FILE"
+        continue
+    fi
+
+    expected_actions=$(grep "^operationcount=" "$operationcount_file" | cut -d '=' -f2)
+    if [[ -z "$expected_actions" ]]; then
+        echo "Error: Unable to read operationcount from $operationcount_file" | tee -a "$LOG_FILE"
+        continue
+    fi
+
     for threads in "${threads_variants[@]}"; do
         echo "===========================================" | tee -a "$LOG_FILE"
-        echo "Running experiment with populateDB=$populateDB, ReadOnlyActions=$ReadOnlyActions and threads=$threads" | tee -a "$LOG_FILE"
+        echo "Running experiment with populateDB=$populateDB, ReadOnlyActions=$ReadOnlyActions, threads=$threads, expected actions=$expected_actions" | tee -a "$LOG_FILE"
         echo "===========================================" | tee -a "$LOG_FILE"
 
         # 清空数据库
@@ -51,35 +64,24 @@ EOF
             fi
         done
 
-        # 运行 BGMainClass (步骤 3) 并检测 "Visualization thread has Stopped..." 或 "NullPointerException"
+        # 运行 BGMainClass (步骤 3) 并检测 "X sec: X actions;"
         echo "Starting workload execution with $threads threads..."
         java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -threads "$threads" -db janusgraph.JanusGraphClient -P "workloads/$ReadOnlyActions" -s true 2>&1 | tee tmp_output.log &
         PID=$!
 
-        # 监控日志，检测 "Visualization thread has Stopped..." 或 "NullPointerException"
+        # 监控日志，直到 "X sec: X actions;" 出现，并检查 X actions 是否等于 expected_actions
         while sleep 2; do
-            if grep -q "Visualization thread has Stopped" tmp_output.log; then
-                echo "Detected Visualization thread has Stopped - Killing process $PID"
-                kill -9 "$PID"
+            ACTIONS_LINE=$(grep -o "[0-9]\+ sec: [0-9]\+ actions;" tmp_output.log | tail -n 1)
+            if [[ -n "$ACTIONS_LINE" ]]; then
+                actual_actions=$(echo "$ACTIONS_LINE" | awk '{print $3}')
+                if [[ "$actual_actions" -eq "$expected_actions" ]]; then
+                    echo "Detected '$ACTIONS_LINE' with expected actions $expected_actions - Killing process $PID"
+                    kill -9 "$PID"
 
-                # 记录倒数第三行
-                LAST_THREE_LINES=$(tail -n 3 tmp_output.log)
-                THIRD_LAST_LINE=$(echo "$LAST_THREE_LINES" | head -n 1)
-                echo "Result: $THIRD_LAST_LINE" | tee -a "$LOG_FILE"
-                break
-
-            elif grep -q "Exception in thread .* java.lang.NullPointerException" tmp_output.log; then
-                echo "Detected NullPointerException - Searching for PROFILE AverageResponseTime"
-                kill -9 "$PID"
-
-                # 记录最后一行含有 [PROFILE AverageResponseTime(us)=...] 的内容
-                PROFILE_LINE=$(grep "\[PROFILE AverageResponseTime(us)=" tmp_output.log | tail -n 1)
-                if [ -n "$PROFILE_LINE" ]; then
-                    echo "Result: $PROFILE_LINE" | tee -a "$LOG_FILE"
-                else
-                    echo "Result: No PROFILE AverageResponseTime found" | tee -a "$LOG_FILE"
+                    # 记录日志
+                    echo "Result: $ACTIONS_LINE" | tee -a "$LOG_FILE"
+                    break
                 fi
-                break
             fi
         done
     done

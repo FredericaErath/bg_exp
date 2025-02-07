@@ -12,8 +12,8 @@ LOG_FILE="experiment_results1.log"
 > "$LOG_FILE"
 
 # 定义参数组合
-populateDB_variants=("populateDB_2" "populateDB_3")
-ReadOnlyActions_variants=("ReadOnlyActions_2" "ReadOnlyActions_3")
+populateDB_variants=("populateDB_1, populateDB_2" "populateDB_3")
+ReadOnlyActions_variants=("ReadOnlyActions_1, ReadOnlyActions_2" "ReadOnlyActions_3")
 threads_variants=(1 10 100)
 
 # 遍历所有组合

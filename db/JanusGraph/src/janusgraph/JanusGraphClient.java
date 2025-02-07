@@ -308,7 +308,6 @@ public class JanusGraphClient extends DB{
 			try {
 		// get all the attributes
 		String query = "g.V().hasLabel('users').has('userid', " + profileOwnerID + ").valueMap()";
-		System.out.println(query);
 		Iterator<Result> results = client.submit(query).iterator();
 		if (!results.hasNext()) {
 			return SUCCESS;

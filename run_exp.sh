@@ -11,25 +11,27 @@ LOG_FILE="experiment_results.log"
 # 清空日志文件
 > "$LOG_FILE"
 
-# 启动 Gremlin Console 并清空数据库
-echo "Starting Gremlin Console..."
-"$GREMLIN_CONSOLE" <<EOF
-:remote connect tinkerpop.server $REMOTE_CONFIG
-:remote console
-g.V().drop()
-:exit
-EOF
-
-echo "JanusGraph database cleared."
-
 # 定义参数组合
 populateDB_variants=("populateDB_1" "populateDB_2" "populateDB_3")
-threads_variants=(1 10 100)
+threads_variants=(1 2 3)
 
 # 遍历所有组合
 for populateDB in "${populateDB_variants[@]}"; do
     for threads in "${threads_variants[@]}"; do
-        echo "Running experiment with populateDB=$populateDB and threads=$threads" | tee -a "$LOG_FILE"
+        echo "===========================================" | tee -a "$LOG_FILE"
+                echo "Running experiment with populateDB=$populateDB and threads=$threads" | tee -a "$LOG_FILE"
+                echo "===========================================" | tee -a "$LOG_FILE"
+
+                # 清空数据库
+                echo "Clearing JanusGraph database before running this combination..."
+                "$GREMLIN_CONSOLE" <<EOF
+                :remote connect tinkerpop.server $REMOTE_CONFIG
+                :remote console
+                g.V().drop()
+                :exit
+        # shellcheck disable=SC1039
+EOF
+        echo "JanusGraph database cleared."
 
         # 运行 BGMainClass (步骤 2) 并检测 "SHUTDOWN!!!"
         echo "Starting database population..."

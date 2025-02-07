@@ -87,7 +87,7 @@ public class JanusGraphClient extends DB{
 
 		try {
 			// Get user count.
-			query = "g.V().hasLabel('users').count().next()";
+			query = "g.V().hasLabel('users').count().tryNext().orElse(null)";
 			rs = client.submit(query);
 			if (rs!=null) {
 				stats.put("usercount", rs.one().getString());
@@ -95,11 +95,13 @@ public class JanusGraphClient extends DB{
 				stats.put("usercount", "0");
 
 			// Get user offset.
-			query = "g.V().hasLabel('users').values('userid').min().next();";
+			query = "g.V().hasLabel('users').values('userid').min().tryNext().orElse(null)";
 			rs = client.submit(query);
 			String offset = "0";
-			if (rs!=null) {
+			try {
 				offset = rs.one().getString();
+			} catch (NullPointerException e){
+				System.out.println("no elements");
 			}
 
 			// Get resources per user.
@@ -107,18 +109,24 @@ public class JanusGraphClient extends DB{
 
 
 			// Get number of friends per user.
-			query = "g.V().hasLabel('users').has('userid', " + offset + ").both('friendship').has('status', 'friend').count().next()";
-			rs = client.submit(query);
-			if (rs!=null) {
-				stats.put("avgfriendsperuser", rs.one().getString());
-			} else
+			if(!offset.equals("0")){
+				query = "g.V().hasLabel('users').has('userid', " + offset + ").both('friendship').has('status', 'friend').count().tryNext().orElse(null)";
+				rs = client.submit(query);
+				if (rs!=null) {
+					stats.put("avgfriendsperuser", rs.one().getString());
+				} else
+					stats.put("avgfriendsperuser", "0");
+				query = "g.V().hasLabel('users').has('userid', " + offset + ").both('friendship').has('status', 'pending').count().tryNext().orElse(null)";
+				rs = client.submit(query);
+				if (rs!=null) {
+					stats.put("avgpendingperuser", rs.one().getString());
+				} else
+					stats.put("avgpendingperuser", "0");
+			} else {
 				stats.put("avgfriendsperuser", "0");
-			query = "g.V().hasLabel('users').has('userid', " + offset + ").both('friendship').has('status', 'pending').count().next()";
-			rs = client.submit(query);
-			if (rs!=null) {
-				stats.put("avgpendingperuser", rs.one().getString());
-			} else
 				stats.put("avgpendingperuser", "0");
+			}
+
 		} catch (Exception sx) {
 			sx.printStackTrace(System.out);
 		}

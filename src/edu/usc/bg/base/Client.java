@@ -1337,7 +1337,7 @@ public class Client {
 		Properties props = new Properties();
 		Properties fileprops = new Properties();
 		//Enums & map of enum,obj
-		boolean[] inputArguments = {true, false, false, false, false, false, false, false, false};
+		boolean[] inputArguments = {true, false, false, false, false, false, false, false, true};
 
 		final int dotransactions = 0;
 		final int doSchema = 1;

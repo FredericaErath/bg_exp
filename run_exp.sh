@@ -14,7 +14,6 @@ LOG_FILE="experiment_results.log"
 # 定义参数组合
 populateDB_variants=("populateDB_1" "populateDB_2" "populateDB_3")
 ReadOnlyActions_variants=("ReadOnlyActions_1" "ReadOnlyActions_2" "ReadOnlyActions_3")
-threads_variants=(1 10 100)
 
 # 遍历所有组合
 for i in "${!populateDB_variants[@]}"; do
@@ -71,7 +70,7 @@ EOF
 
         # 监控日志，直到 "X sec: X actions;" 出现，并检查 X actions 是否等于 expected_actions
         while sleep 2; do
-            ACTIONS_LINE=$(grep -o "[0-9]\+ sec: [0-9]\+ actions;" tmp_output.log | tail -n 1)
+            ACTIONS_LINE=$(grep -o "[0-9]\+ sec: [0-9]\+ actions; .*" tmp_output.log | tail -n 1)
             if [[ -n "$ACTIONS_LINE" ]]; then
                 actual_actions=$(echo "$ACTIONS_LINE" | awk '{print $3}')
                 if [[ "$actual_actions" -eq "$expected_actions" ]]; then

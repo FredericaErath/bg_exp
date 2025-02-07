@@ -50,7 +50,7 @@ EOF
 
         # 运行 BGMainClass (步骤 3) 并检测 "Visualization thread has Stopped..."
         echo "Starting workload execution with $threads threads..."
-        java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -threads "$threads" -db janusgraph.JanusGraphClient -P "workloads/ReadOnlyActions" -s true -stats true 2>&1 | tee tmp_output.log &
+        java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -threads "$threads" -db janusgraph.JanusGraphClient -P "workloads/ReadOnlyActions" -s true 2>&1 | tee tmp_output.log &
         PID=$!
 
         # 监控日志，检测 "Visualization thread has Stopped..."

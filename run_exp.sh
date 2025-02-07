@@ -19,7 +19,7 @@ threads_variants=(1 2 3)
 # 遍历所有组合
 for i in "${!populateDB_variants[@]}"; do
     populateDB="${populateDB_variants[$i]}"
-    ReadOnlyActions_1="${ReadOnlyActions_variants[$i]}"
+    ReadOnlyActions="${ReadOnlyActions_variants[$i]}"
 
     for threads in "${threads_variants[@]}"; do
         echo "===========================================" | tee -a "$LOG_FILE"

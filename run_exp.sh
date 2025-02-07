@@ -23,12 +23,13 @@ for populateDB in "${populateDB_variants[@]}"; do
                 echo "===========================================" | tee -a "$LOG_FILE"
 
                 # 清空数据库
-                echo "Clearing JanusGraph database before running this combination..."
-                "$GREMLIN_CONSOLE" <<EOF
-                :remote connect tinkerpop.server $REMOTE_CONFIG
-                :remote console
-                g.V().drop()
-                :exit
+echo "Clearing JanusGraph database before running this combination..."
+"$GREMLIN_CONSOLE" <<EOF
+:remote connect tinkerpop.server $REMOTE_CONFIG
+:remote console
+:remote config timeout 600000
+g.V().drop()
+:exit
         # shellcheck disable=SC1039
 EOF
         echo "JanusGraph database cleared."

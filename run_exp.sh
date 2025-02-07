@@ -6,14 +6,14 @@ GREMLIN_CONSOLE="$GREMLIN_HOME/bin/gremlin.sh"
 REMOTE_CONFIG="$GREMLIN_HOME/conf/remote.yaml"
 
 # 记录日志文件
-LOG_FILE="experiment_results.log"
+LOG_FILE="experiment_results1.log"
 
 # 清空日志文件
 > "$LOG_FILE"
 
 # 定义参数组合
-populateDB_variants=("populateDB_1" "populateDB_2" "populateDB_3")
-ReadOnlyActions_variants=("ReadOnlyActions_1" "ReadOnlyActions_2" "ReadOnlyActions_3")
+populateDB_variants=("populateDB_2" "populateDB_3")
+ReadOnlyActions_variants=("ReadOnlyActions_2" "ReadOnlyActions_3")
 threads_variants=(1 10 100)
 
 # 遍历所有组合
@@ -52,12 +52,12 @@ EOF
 
         # 运行 BGMainClass (步骤 2) 并检测 "SHUTDOWN!!!"
         echo "Starting database population..."
-        java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -load edu.usc.bg.workloads.UserWorkLoad -db janusgraph.JanusGraphClient -P "workloads/$populateDB" 2>&1 | tee tmp_output.log &
+        java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -load edu.usc.bg.workloads.UserWorkLoad -db janusgraph.JanusGraphClient -P "workloads/$populateDB" 2>&1 | tee tmp_output1.log &
         PID=$!
 
         # 监控日志，检测 "SHUTDOWN!!!"
         while sleep 2; do
-            if grep -q "SHUTDOWN!!!" tmp_output.log; then
+            if grep -q "SHUTDOWN!!!" tmp_output1.log; then
                 echo "Detected SHUTDOWN!!! - Killing process $PID"
                 kill -9 "$PID"
                 break
@@ -66,12 +66,12 @@ EOF
 
         # 运行 BGMainClass (步骤 3) 并检测 "X sec: X actions;"
         echo "Starting workload execution with $threads threads..."
-        java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -threads "$threads" -db janusgraph.JanusGraphClient -P "workloads/$ReadOnlyActions" -s true 2>&1 | tee tmp_output.log &
+        java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -threads "$threads" -db janusgraph.JanusGraphClient -P "workloads/$ReadOnlyActions" -s true 2>&1 | tee tmp_output1.log &
         PID=$!
 
         # 监控日志，直到 "X sec: X actions;" 出现，并检查 X actions 是否等于 expected_actions
         while sleep 2; do
-            ACTIONS_LINE=$(grep -o "[0-9]\+ sec: [0-9]\+ actions; .*" tmp_output.log | tail -n 1)
+            ACTIONS_LINE=$(grep -o "[0-9]\+ sec: [0-9]\+ actions; .*" tmp_output1.log | tail -n 1)
             if [[ -n "$ACTIONS_LINE" ]]; then
                 actual_actions=$(echo "$ACTIONS_LINE" | awk '{print $3}')
                 if [[ "$actual_actions" -eq "$expected_actions" ]]; then

@@ -6,7 +6,7 @@ GREMLIN_CONSOLE="$GREMLIN_HOME/bin/gremlin.sh"
 REMOTE_CONFIG="$GREMLIN_HOME/conf/remote.yaml"
 
 # 记录日志文件
-LOG_FILE="experiment_results_2.log"
+LOG_FILE="experiment_results_3.log"
 
 # 清空日志文件
 > "$LOG_FILE"
@@ -14,7 +14,7 @@ LOG_FILE="experiment_results_2.log"
 # 定义参数组合
 populateDB_variants=("populateDB_3")
 ReadOnlyActions_variants=("ReadOnlyActions_3")
-threads_variants=(10 100)
+threads_variants=(100)
 
 # 遍历所有组合
 for i in "${!populateDB_variants[@]}"; do
@@ -41,12 +41,12 @@ for i in "${!populateDB_variants[@]}"; do
 
         # 运行 BGMainClass (步骤 3) 并检测 "X sec: X actions;"
         echo "Starting workload execution with $threads threads..."
-        java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -threads "$threads" -db janusgraph.JanusGraphClient -P "workloads/$ReadOnlyActions" -s true 2>&1 | tee tmp_output_2.log &
+        java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -threads "$threads" -db janusgraph.JanusGraphClient -P "workloads/$ReadOnlyActions" -s true 2>&1 | tee tmp_output_3.log &
         PID=$!
 
         # 监控日志，直到 "X sec: X actions;" 出现，并检查 X actions 是否等于 expected_actions
         while sleep 2; do
-            ACTIONS_LINE=$(grep -o "[0-9]\+ sec: [0-9]\+ actions; .*" tmp_output_2.log | tail -n 1)
+            ACTIONS_LINE=$(grep -o "[0-9]\+ sec: [0-9]\+ actions; .*" tmp_output_3.log | tail -n 1)
             if [[ -n "$ACTIONS_LINE" ]]; then
                 actual_actions=$(echo "$ACTIONS_LINE" | awk '{print $3}')
                 if [[ "$actual_actions" -eq "$expected_actions" ]]; then

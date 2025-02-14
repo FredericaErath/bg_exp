@@ -1,63 +1,62 @@
+// 回滚当前事务（如果有）
+graph.tx().rollback()
+
+// 打开管理接口
 mgmt = graph.openManagement()
 
-// === 1. Composite Index for "userid" (唯一索引) ===
-if (mgmt.getGraphIndex("user_id_index") == null) {
-    println("Creating Composite Index: user_id_index")
-
-    userIdKey = mgmt.getPropertyKey("userid") ?: mgmt.makePropertyKey("userid").dataType(Integer.class).make()
-
-    mgmt.buildIndex("user_id_index", Vertex.class)
-            .addKey(userIdKey)
+// 检查复合索引 'user_id_index' 是否存在
+userIndexExists = mgmt.getGraphIndex('user_id_index') != null
+if (!userIndexExists) {
+    println "Composite index 'user_id_index' does not exist. Creating new index..."
+    userId = mgmt.getPropertyKey("userid") ?: mgmt.makePropertyKey("userid").dataType(Integer.class).make()
+    users = mgmt.getVertexLabel('users') ?: mgmt.makeVertexLabel("users").make()
+    mgmt.buildIndex('user_id_index', Vertex.class)
+            .addKey(userId)
             .unique()
-            .indexOnly(mgmt.getVertexLabel("users"))
+            .indexOnly(users)  // 限制索引仅适用于 users 顶点
             .buildCompositeIndex()
+    mgmt.commit()
 
+    // 等待复合索引可用
+    println "Waiting for composite index 'user_id_index' to become available..."
+    ManagementSystem.awaitGraphIndexStatus(graph, 'user_id_index').status(SchemaStatus.ENABLED).call()
+
+    // 重新索引现有数据
+    println "Reindexing existing data for composite index 'user_id_index'..."
+    mgmt = graph.openManagement()
+    mgmt.updateIndex(mgmt.getGraphIndex('user_id_index'), SchemaAction.REINDEX).get()
+    mgmt.commit()
 } else {
-    println("Composite index 'user_id_index' already exists.")
+    println "Composite index 'user_id_index' already exists. Skipping creation..."
 }
 
-// === 2. Vertex-Centric Index for "friendship" on "status" ===
-friendship = mgmt.getEdgeLabel("friendship") ?: mgmt.makeEdgeLabel("friendship").make()
-statusKey = mgmt.getPropertyKey("status") ?: mgmt.makePropertyKey("status").dataType(String.class).make()
-
-if (mgmt.getRelationIndex(friendship, "friendship_status_index") == null) {
-    println("Creating Vertex-Centric Index: friendship_status_index")
-    mgmt.buildEdgeIndex(friendship, "friendship_status_index", Direction.BOTH, Order.desc, statusKey)
-} else {
-    println("Vertex-centric index 'friendship_status_index' already exists.")
-}
-
-mgmt.commit()
-println("Index creation process completed.")
-
-// === 3. update ===
 mgmt = graph.openManagement()
+// 检查顶点中心索引 'friendship_status_index' 是否存在
+friendship = mgmt.getEdgeLabel("friendship") ?: mgmt.makeEdgeLabel("friendship").make()
 
-def updateIndexStatus = { indexName ->
-    def index = mgmt.getGraphIndex(indexName)
-    if (index != null) {
-        def status = index.getIndexStatus(mgmt.getPropertyKey("userid"))
-        println("Index '${indexName}' status: ${status}")
+// 获取或创建属性键 'status'
+status = mgmt.getPropertyKey("status") ?: mgmt.makePropertyKey("status").dataType(String.class).make()
 
-        if (status == SchemaStatus.INSTALLED) {
-            println("Reindexing '${indexName}'...")
-            mgmt.updateIndex(index, SchemaAction.REINDEX).get()
-            println("Reindexing '${indexName}' completed.")
-        } else if (status == SchemaStatus.REGISTERED) {
-            println("Enabling '${indexName}'...")
-            mgmt.updateIndex(index, SchemaAction.ENABLE_INDEX).get()
-            println("Index '${indexName}' enabled.")
-        } else {
-            println("Index '${indexName}' is already active.")
-        }
-    } else {
-        println("Index '${indexName}' not found.")
-    }
+// 检查顶点中心索引 'friendship_status_index' 是否存在
+friendshipIndexExists = mgmt.getRelationIndex(friendship, 'friendship_status_index') != null
+if (!friendshipIndexExists) {
+    println "Vertex-centric index 'friendship_status_index' does not exist. Creating new index..."
+
+    // 创建顶点中心索引
+    mgmt.buildEdgeIndex(friendship, 'friendship_status_index', Direction.BOTH, Order.asc, status)
+    mgmt.commit()
+
+    // 等待顶点中心索引可用
+    println "Waiting for vertex-centric index 'friendship_status_index' to become available..."
+    ManagementSystem.awaitRelationIndexStatus(graph, 'friendship_status_index', 'friendship').status(SchemaStatus.ENABLED).call()
+
+    // 重新索引现有数据
+    println "Reindexing existing data for vertex-centric index 'friendship_status_index'..."
+    mgmt = graph.openManagement()
+    mgmt.updateIndex(mgmt.getRelationIndex(friendship, 'friendship_status_index'), SchemaAction.REINDEX).get()
+    mgmt.commit()
+} else {
+    println "Vertex-centric index 'friendship_status_index' already exists. Skipping creation..."
 }
 
-println("\n=== Updating Index Status ===")
-updateIndexStatus("user_id_index")
-updateIndexStatus("friendship_status_index")
-
-mgmt.commit()
-println("Index status update completed.")
+println "Index creation and reindexing completed successfully!"

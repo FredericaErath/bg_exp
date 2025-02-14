@@ -1,23 +1,31 @@
 mgmt = graph.openManagement()
 
-// 创建唯一索引
-useridKey = mgmt.getPropertyKey("userid")
-if (useridKey == null) {
-    useridKey = mgmt.makePropertyKey("userid").dataType(String.class).make()
+// === 1. Composite Index for "userid" (唯一索引) ===
+if (mgmt.getGraphIndex("user_id_index") == null) {
+    println("Creating Composite Index: user_id_index")
+
+    userIdKey = mgmt.getPropertyKey("userid") ?: mgmt.makePropertyKey("userid").dataType(Integer.class).make()
+
+    mgmt.buildIndex("user_id_index", Vertex.class)
+            .addKey(userIdKey)
+            .unique()
+            .indexOnly(mgmt.getVertexLabel("users"))
+            .buildCompositeIndex()
+
+} else {
+    println("Composite index 'user_id_index' already exists.")
 }
 
-mgmt.buildIndex("userid_unique_index", Vertex.class)
-        .addKey(useridKey)
-        .unique()
-        .buildCompositeIndex()
+// === 2. Vertex-Centric Index for "friendship" on "status" ===
+friendship = mgmt.getEdgeLabel("friendship") ?: mgmt.makeEdgeLabel("friendship").make()
+statusKey = mgmt.getPropertyKey("status") ?: mgmt.makePropertyKey("status").dataType(String.class).make()
+
+if (mgmt.getRelationIndex(friendship, "friendship_status_index") == null) {
+    println("Creating Vertex-Centric Index: friendship_status_index")
+    mgmt.buildEdgeIndex(friendship, "friendship_status_index", Direction.BOTH, Order.desc, statusKey)
+} else {
+    println("Vertex-centric index 'friendship_status_index' already exists.")
+}
 
 mgmt.commit()
-
-// 等待索引状态变为 ENABLED
-graph.tx().rollback()
-ManagementSystem.awaitGraphIndexStatus(graph, "userid_unique_index").call()
-
-// 启用索引
-mgmt = graph.openManagement()
-mgmt.updateIndex(mgmt.getGraphIndex("userid_unique_index"), SchemaAction.ENABLE_INDEX)
-mgmt.commit()
+println("Index creation process completed.")

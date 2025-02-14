@@ -29,3 +29,35 @@ if (mgmt.getRelationIndex(friendship, "friendship_status_index") == null) {
 
 mgmt.commit()
 println("Index creation process completed.")
+
+// === 3. update ===
+mgmt = graph.openManagement()
+
+def updateIndexStatus = { indexName ->
+    def index = mgmt.getGraphIndex(indexName)
+    if (index != null) {
+        def status = index.getIndexStatus(mgmt.getPropertyKey("userid"))
+        println("Index '${indexName}' status: ${status}")
+
+        if (status == SchemaStatus.INSTALLED) {
+            println("Reindexing '${indexName}'...")
+            mgmt.updateIndex(index, SchemaAction.REINDEX).get()
+            println("Reindexing '${indexName}' completed.")
+        } else if (status == SchemaStatus.REGISTERED) {
+            println("Enabling '${indexName}'...")
+            mgmt.updateIndex(index, SchemaAction.ENABLE_INDEX).get()
+            println("Index '${indexName}' enabled.")
+        } else {
+            println("Index '${indexName}' is already active.")
+        }
+    } else {
+        println("Index '${indexName}' not found.")
+    }
+}
+
+println("\n=== Updating Index Status ===")
+updateIndexStatus("user_id_index")
+updateIndexStatus("friendship_status_index")
+
+mgmt.commit()
+println("Index status update completed.")

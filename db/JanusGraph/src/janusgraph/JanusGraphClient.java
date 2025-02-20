@@ -50,40 +50,58 @@ public class JanusGraphClient extends DB{
 	/** The code to return when the call fails. **/
 	public static final int ERROR   = -1;
 	private Properties props;
-	GraphTraversalSource g;
-	Client client;
+	private static volatile Client sharedClient = null;
+	private static volatile GraphTraversalSource sharedG = null;
+	private static volatile boolean initialized = false;
+	private static final Object INIT_LOCK = new Object();
+
+	private Client client;
+	private GraphTraversalSource g;
 
 
 	@Override
 	public boolean init() throws DBException {
-		// todo: connection how many? docs
-		try {
-			TypeSerializerRegistry registry = TypeSerializerRegistry.build()
-					.addRegistry(JanusGraphIoRegistry.instance())
-					.create();
-			Cluster cluster = Cluster.build()
-					.addContactPoint("128.110.96.123")
-					.port(8182)
-					.minConnectionPoolSize(10)
-					.maxConnectionPoolSize(100)
-					.maxSimultaneousUsagePerConnection(16)
-					.maxWaitForConnection(5000)
-					.serializer(new GraphBinaryMessageSerializerV1(registry))
-					.maxContentLength(524288)
-					.create();
-			client = cluster.connect();
-			g = traversal().withRemote(DriverRemoteConnection.using(cluster));
-			System.out.println("connected successfully");
-			try {
-				createSchema(props);
-			} catch (Exception e){
-				e.printStackTrace(System.out);
+		if (!initialized) {
+			synchronized (INIT_LOCK) {
+				if (!initialized) {
+					try {
+						TypeSerializerRegistry registry = TypeSerializerRegistry.build()
+								.addRegistry(JanusGraphIoRegistry.instance())
+								.create();
+
+						Cluster cluster = Cluster.build()
+								.addContactPoint("128.110.96.123")
+								.port(8182)
+								.minConnectionPoolSize(10)
+								.maxConnectionPoolSize(100)
+								.maxSimultaneousUsagePerConnection(16)
+								.maxWaitForConnection(5000)
+								.serializer(new GraphBinaryMessageSerializerV1(registry))
+								.maxContentLength(524288)
+								.create();
+
+						sharedClient = cluster.connect();
+						sharedG = traversal().withRemote(DriverRemoteConnection.using(cluster));
+
+						System.out.println("connected successfully in thread " + Thread.currentThread().getName());
+
+						try {
+							createSchema(props);
+						} catch (Exception e) {
+							e.printStackTrace(System.out);
+						}
+						initialized = true;
+					} catch (Exception e) {
+						e.printStackTrace(System.out);
+						return false;
+					}
+				}
 			}
-			return true;
-		} catch (Exception e) {
-			e.printStackTrace(System.out);
-			return false;
 		}
+
+		this.client = sharedClient;
+		this.g = sharedG;
+		return true;
 	}
 
 	public static void main(String[] args) throws DBException {
@@ -150,7 +168,7 @@ public class JanusGraphClient extends DB{
 		try {
 			// read JSON file
 			String schemaScript = new String(Files.readAllBytes(Paths.get("conf/schema.groovy")));
-			client.submit(schemaScript).all().get();
+			sharedClient.submit(schemaScript).all().get();
 
 			System.out.println("Schema successfully created!");
 		} catch (Exception e) {
@@ -307,7 +325,6 @@ public class JanusGraphClient extends DB{
 				return ERROR;
 			}
 
-			// 检查是否存在 "pending" 状态的 friendship 边
 			Object edgeId = g.V(inviterVertexId)
 					.outE("friendship").has("status", "pending")
 					.where(__.inV().hasId(inviteeVertexId))
@@ -319,7 +336,6 @@ public class JanusGraphClient extends DB{
 				return SUCCESS;
 			}
 
-			// 更新 friendship edge 状态为 "rejected"
 			g.E(edgeId).property("status", "rejected").iterate();
 
 			System.out.println("Friend request from " + inviterID + " to " + inviteeID + " has been rejected.");
@@ -349,7 +365,6 @@ public class JanusGraphClient extends DB{
 				return SUCCESS;
 			}
 
-			// 解析用户信息
 			Map<Object, Object> valueMap = (Map<Object, Object>) resultMap.get("profile");
 			valueMap.forEach((key, value) -> {
 				if (key instanceof String && value instanceof List) {
@@ -365,8 +380,6 @@ public class JanusGraphClient extends DB{
 			result.put("pendingcount", new StringByteIterator(String.valueOf(pendingFriendCount)));
 			result.put("friendcount", new StringByteIterator(String.valueOf(friendCount)));
 
-			System.out.println(result);
-
 			return SUCCESS;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -377,7 +390,6 @@ public class JanusGraphClient extends DB{
 	@Override
 	public int thawFriendship(int friendid1, int friendid2) {
 		try {
-			// 查找 friendship 关系的 edge ID
 			Object edgeId = g.E().hasLabel("friendship")
 					.where(__.or(
 							__.and(__.outV().has("userid", friendid1), __.inV().has("userid", friendid2)),
@@ -392,7 +404,6 @@ public class JanusGraphClient extends DB{
 				return ERROR;
 			}
 
-			// 删除 friendship 关系
 			g.E(edgeId).drop().iterate(); // 直接执行删除操作
 
 			return SUCCESS;
@@ -454,9 +465,9 @@ public class JanusGraphClient extends DB{
 		try {
 			List<Map<Object, Object>> pendingRequests = g.V().hasLabel("users").has("userid", profileOwnerID)
 					.inE("friendship").has("status", "pending") // 获取请求加好友的入边
-					.outV() // 获取发出好友请求的用户
-					.valueMap() // 获取用户属性
-					.toList(); // 转换为 List
+					.outV()
+					.valueMap()
+					.toList();
 
 			for (Map<Object, Object> friendData : pendingRequests) {
 				HashMap<String, ByteIterator> friendMap = new HashMap<>();
@@ -483,12 +494,12 @@ public class JanusGraphClient extends DB{
 	public int queryPendingFriendshipIds(int inviteeid, Vector<Integer> pendingIds){
 		try {
 			List<Object> pendingUserIds = g.V().hasLabel("users").has("userid", inviteeid)
-					.inE("friendship").has("status", "pending") // 找到所有 "pending" 状态的好友请求边
-					.outV().values("userid") // 获取请求好友的用户 ID
-					.toList(); // 转换为 List
+					.inE("friendship").has("status", "pending")
+					.outV().values("userid")
+					.toList();
 
 			for (Object id : pendingUserIds) {
-				pendingIds.add(Integer.parseInt(id.toString())); // 转换为 Integer 并添加到列表
+				pendingIds.add(Integer.parseInt(id.toString()));
 			}
 
 			return SUCCESS;
@@ -502,12 +513,12 @@ public class JanusGraphClient extends DB{
 	public int queryConfirmedFriendshipIds(int profileId, Vector<Integer> confirmedIds){
 		try {
 			List<Object> confirmedUserIds = g.V().hasLabel("users").has("userid", profileId)
-					.inE("friendship").has("status", "friend") // 获取 "friend" 状态的入边
-					.outV().values("userid") // 获取好友的用户 ID
-					.toList(); // 转换为 List
+					.inE("friendship").has("status", "friend")
+					.outV().values("userid")
+					.toList();
 
 			for (Object id : confirmedUserIds) {
-				confirmedIds.add(Integer.parseInt(id.toString())); // 转换为 Integer 并添加到列表
+				confirmedIds.add(Integer.parseInt(id.toString()));
 			}
 
 			return SUCCESS;

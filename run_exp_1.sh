@@ -12,13 +12,11 @@ LOG_FILE="experiment_results_3.log"
 > "$LOG_FILE"
 
 # 定义参数组合
-populateDB_variants=("populateDB_3")
-ReadOnlyActions_variants=("ReadOnlyActions_3")
-threads_variants=(100)
+ReadOnlyActions_variants=("ReadOnlyActions_1" "ReadOnlyActions_2")
+threads_variants=(1 10 100)
 
 # 遍历所有组合
-for i in "${!populateDB_variants[@]}"; do
-    populateDB="${populateDB_variants[$i]}"
+for i in "${!ReadOnlyActions_variants[@]}"; do
     ReadOnlyActions="${ReadOnlyActions_variants[$i]}"
 
     # 读取 ReadOnlyActions_i 文件中的 operationcount
@@ -36,7 +34,7 @@ for i in "${!populateDB_variants[@]}"; do
 
     for threads in "${threads_variants[@]}"; do
         echo "===========================================" | tee -a "$LOG_FILE"
-        echo "Running experiment with populateDB=$populateDB, ReadOnlyActions=$ReadOnlyActions, threads=$threads, expected actions=$expected_actions" | tee -a "$LOG_FILE"
+        echo "Running experiment with ReadOnlyActions=$ReadOnlyActions, threads=$threads, expected actions=$expected_actions" | tee -a "$LOG_FILE"
         echo "===========================================" | tee -a "$LOG_FILE"
 
         # 运行 BGMainClass (步骤 3) 并检测 "X sec: X actions;"

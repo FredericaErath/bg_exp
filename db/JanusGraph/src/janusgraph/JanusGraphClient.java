@@ -31,6 +31,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.structure.Column;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.io.binary.TypeSerializerRegistry;
 import org.apache.tinkerpop.gremlin.util.ser.GraphBinaryMessageSerializerV1;
@@ -61,6 +62,7 @@ public class JanusGraphClient extends DB{
 
 	@Override
 	public boolean init() throws DBException {
+		// todo: reload everything
 		if (!initialized) {
 			synchronized (INIT_LOCK) {
 				if (!initialized) {
@@ -216,29 +218,20 @@ public class JanusGraphClient extends DB{
 	@Override
 	public int inviteFriend(int inviterID, int inviteeID){
 		try {
-			Object inviterVertexId = g.V().hasLabel("users").has("userid", inviterID).id().tryNext().orElse(null);
-			Object inviteeVertexId = g.V().hasLabel("users").has("userid", inviteeID).id().tryNext().orElse(null);
-
-			if (inviterVertexId == null || inviteeVertexId == null) {
-				System.err.println("Inviter or Invitee ID not found.");
-				return SUCCESS;
-			}
-
-			Object existingStatus = g.V(inviterVertexId)
-					.outE("friendship")
-					.where(__.inV().hasId(inviteeVertexId))
-					.values("status")
-					.tryNext()
-					.orElse(null);
-
-			if (existingStatus != null) {
-				System.err.println(inviterID + " -> " + inviteeID + " Friendship already exists with status: " + existingStatus);
-				return SUCCESS;
-			}
-
-			g.V(inviterVertexId)
+			g.V().hasLabel("users")
+					.has("userid", P.within(inviterID, inviteeID))
+					.fold()
+					.coalesce(
+							__.unfold().has("userid", inviterID),
+							__.constant("Vertex with userid " + inviterID + " not found")
+					)
+					.coalesce(
+							__.unfold().has("userid", inviteeID),
+							__.constant("Vertex with userid " + inviteeID + " not found")
+					)
 					.addE("friendship")
-					.to(__.V(inviteeVertexId))
+					.from(__.V().has("userid", inviterID))
+					.to(__.V().has("userid", inviteeID))
 					.property("status", "pending")
 					.iterate();
 
@@ -255,28 +248,22 @@ public class JanusGraphClient extends DB{
 	@Override
 	public int CreateFriendship(int friendid1, int friendid2) {
 		try {
-			Map<String, Object> vertexIds = g.V().hasLabel("users")
+			g.V().hasLabel("users")
 					.has("userid", P.within(friendid1, friendid2))
-					.project("userid", "vertexId")
-					.by("userid")
-					.by(__.id())
-					.toList()
-					.stream()
-					.collect(Collectors.toMap(v -> v.get("userid").toString(), v -> v.get("vertexId")));
-
-			if (!vertexIds.containsKey(String.valueOf(friendid1)) || !vertexIds.containsKey(String.valueOf(friendid2))) {
-				System.err.println("One or both vertices not found.");
-				return SUCCESS;
-			}
-
-			Object fromVertexId = vertexIds.get(String.valueOf(friendid1));
-			Object toVertexId = vertexIds.get(String.valueOf(friendid2));
-
-			g.V(fromVertexId)
+					.fold()
+					.coalesce(
+							__.unfold().has("userid", friendid1),
+							__.constant("Vertex with userid " + friendid1 + " not found")
+					)
+					.coalesce(
+							__.unfold().has("userid", friendid2),
+							__.constant("Vertex with userid " + friendid2 + " not found")
+					)
 					.addE("friendship")
-					.to(__.V(toVertexId))
+					.from(__.V().has("userid", friendid1)) // 使用顶点属性查找起点
+					.to(__.V().has("userid", friendid2))   // 使用顶点属性查找终点
 					.property("status", "friend")
-					.iterate(); // 执行 Gremlin 查询
+					.iterate();
 
 			System.out.println(friendid1 + " -> " + friendid2 + " Friendship established successfully!");
 			return SUCCESS;
@@ -291,22 +278,20 @@ public class JanusGraphClient extends DB{
 	public int acceptFriend(int inviterID, int inviteeID) {
 		// change the status of inviter and invitee into confirmed.
 		try {
-			Object fromVertexId = g.V().hasLabel("users").has("userid", inviterID).id().tryNext().orElse(null);
-			Object toVertexId = g.V().hasLabel("users").has("userid", inviteeID).id().tryNext().orElse(null);
+			long count = g.V()
+					.hasLabel("users").has("userid", inviterID).as("from")
+					.V().hasLabel("users").has("userid", inviteeID).as("to")
+					.coalesce(
+							__.select("from").addE("friendship").to(__.select("to")).property("status", "friend").count(),
+							__.constant(0L) // If one or both vertices are missing, return 0
+					).next();
 
-			if (fromVertexId == null || toVertexId == null) {
+			if (count == 0) {
 				System.err.println("One or both vertices not found.");
 				return SUCCESS;
+			} else {
+				System.out.println(inviterID + " -> " + inviteeID + " Friendship established successfully!");
 			}
-
-			// 添加 friendship 关系
-			g.V(fromVertexId)
-					.addE("friendship")
-					.to(__.V(toVertexId))
-					.property("status", "friend")
-					.iterate(); // 直接执行 Gremlin 查询
-
-			System.out.println(fromVertexId + " -> " + toVertexId + " Friendship established successfully!");
 			return SUCCESS;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -317,28 +302,19 @@ public class JanusGraphClient extends DB{
 	@Override
 	public int rejectFriend(int inviterID, int inviteeID) {
 		try {
-			Object inviterVertexId = g.V().hasLabel("users").has("userid", inviterID).id().tryNext().orElse(null);
-			Object inviteeVertexId = g.V().hasLabel("users").has("userid", inviteeID).id().tryNext().orElse(null);
-
-			if (inviteeVertexId == null || inviterVertexId == null) {
-				System.out.println("Invitee or inviter vertex not found.");
-				return ERROR;
-			}
-
-			Object edgeId = g.V(inviterVertexId)
+			Long count = g.V().hasLabel("users").has("userid", inviterID)
 					.outE("friendship").has("status", "pending")
-					.where(__.inV().hasId(inviteeVertexId))
-					.limit(1).id()
-					.tryNext().orElse(null);
+					.where(__.inV().hasLabel("users").has("userid", inviteeID))
+					.limit(1)
+					.property("status", "rejected")
+					.count()
+					.next();
 
-			if (edgeId == null) {
-				System.out.println("RejectFriend action: No pending friendship edge found.");
-				return SUCCESS;
+			if (count == 0) {
+				System.out.println("didn't find any pending -> rejected edges");
+			} else {
+				System.out.println("Friend request from " + inviterID + " to " + inviteeID + " has been rejected.");
 			}
-
-			g.E(edgeId).property("status", "rejected").iterate();
-
-			System.out.println("Friend request from " + inviterID + " to " + inviteeID + " has been rejected.");
 			return SUCCESS;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -350,9 +326,7 @@ public class JanusGraphClient extends DB{
 	@Override
 	public int viewProfile(int requesterID, int profileOwnerID,
 						   HashMap<String, ByteIterator> result, boolean insertImage, boolean testMode) {
-
 		// get all the attributes
-		// todo: check using the index in the graph
 		try {
 			Map<String, Object> resultMap = g.V().hasLabel("users").has("userid", profileOwnerID)
 					.project("profile", "pendingFriendCount", "friendCount")
@@ -390,22 +364,15 @@ public class JanusGraphClient extends DB{
 	@Override
 	public int thawFriendship(int friendid1, int friendid2) {
 		try {
-			Object edgeId = g.E().hasLabel("friendship")
+			g.E()
+					.hasLabel("friendship")
 					.where(__.or(
 							__.and(__.outV().has("userid", friendid1), __.inV().has("userid", friendid2)),
 							__.and(__.outV().has("userid", friendid2), __.inV().has("userid", friendid1))
 					))
 					.has("status", "friend")
-					.id()
-					.tryNext().orElse(null);
-
-			if (edgeId == null) {
-				System.out.println("Friendship does not exist.");
-				return ERROR;
-			}
-
-			g.E(edgeId).drop().iterate(); // 直接执行删除操作
-
+					.drop()
+					.iterate();
 			return SUCCESS;
 		} catch (Exception e) {
 			e.printStackTrace();

@@ -1,16 +1,3 @@
-#!/bin/bash
-
-# 定义 JanusGraph 相关路径（修改为你的实际路径）
-GREMLIN_HOME="$HOME/janusgraph-1.1.0"
-GREMLIN_CONSOLE="$GREMLIN_HOME/bin/gremlin.sh"
-REMOTE_CONFIG="$GREMLIN_HOME/conf/remote.yaml"
-
-# 记录日志文件
-LOG_FILE="experiment_results_4.log"
-
-# 清空日志文件
-> "$LOG_FILE"
-
 # 定义参数组合
 ReadOnlyActions_variants=("ReadOnlyActions_1" "ReadOnlyActions_2")
 threads_variants=(1 10 100)
@@ -64,7 +51,10 @@ for i in "${!ReadOnlyActions_variants[@]}"; do
             while [ $SECONDS -lt $end_time ]; do
                 if kill -0 "$PID" 2>/dev/null; then
                     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-                    usage=$(ps -p $PID -o %cpu,%mem --no-headers)
+                    usage=$(top -b -n 1 -p "$PID" | awk 'NR>7 {print $9, $10}')
+                    if [[ -z "$usage" ]]; then
+                        usage="N/A N/A"
+                    fi
                     echo "$timestamp CPU/MEM: $usage" >> "$CPU_MEM_LOG"
                     sleep 5
                 else

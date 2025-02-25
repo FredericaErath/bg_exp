@@ -37,7 +37,7 @@ for i in "${!ReadOnlyActions_variants[@]}"; do
         echo "===========================================" | tee -a "$LOG_FILE"
 
         # 临时输出文件，用于解析 "X sec: X actions;"
-        TMP_OUTPUT="tmp_output_4.log"
+        TMP_OUTPUT="tmp_output_1.log"
         > "$TMP_OUTPUT"
 
         # 启动 BGMainClass 负载

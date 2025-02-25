@@ -53,6 +53,10 @@ for i in "${!ReadOnlyActions_variants[@]}"; do
              2>&1 | tee "$TMP_OUTPUT" &
         PID=$!
 
+        sleep 310
+        echo "5 minutes reached. Killing process $PID..."
+        kill -9 "$PID"
+
         # 提取最后一条 "X sec: X actions;" 记录
         LAST_ACTIONS_LINE=$(grep -o "[0-9]\+ sec: [0-9]\+ actions; .*" "$TMP_OUTPUT" | tail -n 1)
         if [[ -n "$LAST_ACTIONS_LINE" ]]; then

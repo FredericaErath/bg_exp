@@ -346,15 +346,13 @@ public class JanusGraphClient extends DB{
 	@Override
 	public int thawFriendship(int friendid1, int friendid2) {
 		try {
-			g.E()
-					.hasLabel("friendship")
-					.where(__.or(
-							__.and(__.outV().has("userid", friendid1), __.inV().has("userid", friendid2)),
-							__.and(__.outV().has("userid", friendid2), __.inV().has("userid", friendid1))
-					))
+			g.V().hasLabel("users").has("userid", friendid1)
+					.bothE("friendship")
+					.where(__.otherV().hasLabel("users").has("userid", friendid2))
 					.has("status", "friend")
 					.drop()
 					.iterate();
+			System.out.println("friendship thawed successfully");
 			return SUCCESS;
 		} catch (Exception e) {
 			e.printStackTrace();

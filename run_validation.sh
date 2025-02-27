@@ -60,15 +60,22 @@ echo "Starting validation with $threads_variants threads..." | tee -a "$LOG_FILE
 java -cp "build/classes:lib/*" edu.usc.bg.validator.ValidationMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -db janusgraph.JanusGraphClient -P "workloads/$ValidationAction" -threads "$threads_variants" 2>&1 | tee "$TMP_OUTPUT3" &
 PID3=$!
 
-# 提取日志中 "X% of reads observed the value of ..." 及其后两行
+echo "Started validation process with PID: $PID3"
 echo "Extracting validation results for $threads_variants threads..." | tee -a "$LOG_FILE"
-awk '/[0-9]+% of reads observed the value of /{print; getline; print; getline; print}' "$TMP_OUTPUT3" >> "$LOG_FILE"
+
+# 监听日志文件，一旦匹配到 "X% of reads observed the value of ..." 立即执行操作
+MATCHED_LINE=$(grep -m 1 -E '[0-9]+% of reads observed the value of ' <(tail -f "$TMP_OUTPUT3"))
+
+if [[ -n "$MATCHED_LINE" ]]; then
+    echo "$MATCHED_LINE" | tee -a "$LOG_FILE"  # 记录匹配行
+    read -r next1 <&3 && echo "$next1" | tee -a "$LOG_FILE"  # 读取并记录下一行
+    read -r next2 <&3 && echo "$next2" | tee -a "$LOG_FILE"  # 读取并记录再下一行
+    echo "Validation result detected, killing process $PID3..." | tee -a "$LOG_FILE"
+    kill -9 "$PID3"
+fi
 
 echo "Validation with $threads_variants threads completed. Results logged." | tee -a "$LOG_FILE"
-
-
 echo "All validations completed. Results saved in $LOG_FILE."
-kill -9 "$PID3"
 
 
 

@@ -1,4 +1,4 @@
-operationcount=100
+operationcount=0
 workload=edu.usc.bg.workloads.CoreWorkload
 
 #user ativities

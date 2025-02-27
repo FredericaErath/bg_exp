@@ -38,13 +38,12 @@ PID1=$!
 # 监测 SHUTDOWN 关键字
 while sleep 2; do
     if grep -q "SHUTDOWN" "$TMP_OUTPUT1"; then
-        echo "Detected SHUTDOWN - Waiting for process $PID1 to exit..." | tee -a "$LOG_FILE"
-        wait "$PID1"
+        echo "Detected SHUTDOWN - Waiting for process $PID1 to exit..."
+        kill -9 "$PID1"
         echo "Database population complete." | tee -a "$LOG_FILE"
         break
     fi
 done
-kill -9 "$PID1"
 
 java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -threads "$threads_variants" -db janusgraph.JanusGraphClient -P "workloads/$ValidationAction" -s true 2>&1 | tee $TMP_OUTPUT2 &
 PID2=$!

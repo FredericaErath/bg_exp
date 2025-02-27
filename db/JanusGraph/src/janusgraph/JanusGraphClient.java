@@ -271,9 +271,13 @@ public class JanusGraphClient extends DB{
 			if (count == 0) {
 				System.err.println("One or both vertices not found.");
 				return SUCCESS;
-			} else {
+			} else if (count == 1) {
 				System.out.println(inviterID + " -> " + inviteeID + " Friendship established successfully!");
+			} else{
+				System.err.println("Multiple edges found.");
+				return SUCCESS;
 			}
+			return SUCCESS;
 			return SUCCESS;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -294,8 +298,10 @@ public class JanusGraphClient extends DB{
 
 			if (count == 0) {
 				System.out.println("didn't find any pending -> rejected edges");
-			} else {
+			} else if (count == 1) {
 				System.out.println("Friend request from " + inviterID + " to " + inviteeID + " has been rejected.");
+			} else{
+				System.err.println("Multiple edges found.");
 			}
 			return SUCCESS;
 		} catch (Exception e) {
@@ -348,8 +354,8 @@ public class JanusGraphClient extends DB{
 		try {
 			g.V().hasLabel("users").has("userid", friendid1)
 					.bothE("friendship")
-					.where(__.otherV().hasLabel("users").has("userid", friendid2))
 					.has("status", "friend")
+					.where(__.otherV().hasLabel("users").has("userid", friendid2))
 					.drop()
 					.iterate();
 			System.out.println("friendship thawed successfully");

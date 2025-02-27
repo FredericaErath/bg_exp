@@ -218,20 +218,11 @@ public class JanusGraphClient extends DB{
 	@Override
 	public int inviteFriend(int inviterID, int inviteeID){
 		try {
-			g.V().hasLabel("users")
-					.has("userid", P.within(inviterID, inviteeID))
-					.fold()
-					.coalesce(
-							__.unfold().has("userid", inviterID),
-							__.constant("Vertex with userid " + inviterID + " not found")
-					)
-					.coalesce(
-							__.unfold().has("userid", inviteeID),
-							__.constant("Vertex with userid " + inviteeID + " not found")
-					)
-					.addE("friendship")
-					.from(__.V().has("userid", inviterID))
-					.to(__.V().has("userid", inviteeID))
+			g.V().hasLabel("users").has("userid", inviterID).as("inviter")
+					.V().hasLabel("users").has("userid", inviteeID).as("invitee")
+					.coalesce(__.select("inviter"), __.constant("Vertex with userid " + inviterID + " not found"))
+					.coalesce(__.select("invitee"), __.constant("Vertex with userid " + inviteeID + " not found"))
+					.addE("friendship").from("inviter").to("invitee")
 					.property("status", "pending")
 					.iterate();
 
@@ -248,20 +239,11 @@ public class JanusGraphClient extends DB{
 	@Override
 	public int CreateFriendship(int friendid1, int friendid2) {
 		try {
-			g.V().hasLabel("users")
-					.has("userid", P.within(friendid1, friendid2))
-					.fold()
-					.coalesce(
-							__.unfold().has("userid", friendid1),
-							__.constant("Vertex with userid " + friendid1 + " not found")
-					)
-					.coalesce(
-							__.unfold().has("userid", friendid2),
-							__.constant("Vertex with userid " + friendid2 + " not found")
-					)
-					.addE("friendship")
-					.from(__.V().has("userid", friendid1)) // 使用顶点属性查找起点
-					.to(__.V().has("userid", friendid2))   // 使用顶点属性查找终点
+			g.V().hasLabel("users").has("userid", friendid1).as("inviter")
+					.V().hasLabel("users").has("userid", friendid2).as("invitee")
+					.coalesce(__.select("inviter"), __.constant("Vertex with userid " + friendid1 + " not found"))
+					.coalesce(__.select("invitee"), __.constant("Vertex with userid " + friendid2 + " not found"))
+					.addE("friendship").from("inviter").to("invitee")
 					.property("status", "friend")
 					.iterate();
 

@@ -32,20 +32,7 @@ g.V().drop()
 :exit
 EOF
 
-java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -load edu.usc.bg.workloads.UserWorkLoad -db janusgraph.JanusGraphClient -P "workloads/$PopulateAction" 2>&1 | tee "$TMP_OUTPUT1" &
-PID=$!
-
-# 监测 SHUTDOWN 关键字
-while sleep 2; do
-    if grep -q "SHUTDOWN" "$TMP_OUTPUT1"; then
-        echo "Detected SHUTDOWN - Waiting for process $PID to exit..." | tee -a "$LOG_FILE"
-        wait "$PID"
-        echo "Database population complete." | tee -a "$LOG_FILE"
-        break
-    fi
-done
-
-java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -load edu.usc.bg.workloads.UserWorkLoad -threads 10 -db janusgraph.JanusGraphClient -P "workloads/$PopulateAction" 2>&1 | tee "$TMP_OUTPUT1" &
+java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -load edu.usc.bg.workloads.UserWorkLoad -threads 1 -db janusgraph.JanusGraphClient -P "workloads/$PopulateAction" 2>&1 | tee "$TMP_OUTPUT1" &
 PID1=$!
 
 # 监测 SHUTDOWN 关键字

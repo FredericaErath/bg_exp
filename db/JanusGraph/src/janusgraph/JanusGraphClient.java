@@ -76,7 +76,7 @@ public class JanusGraphClient extends DB{
 								.port(8182)
 								.minConnectionPoolSize(10)
 								.maxConnectionPoolSize(100)
-								.maxSimultaneousUsagePerConnection(16)
+								.maxSimultaneousUsagePerConnection(48)
 								.maxWaitForConnection(5000)
 								.serializer(new GraphBinaryMessageSerializerV1(registry))
 								.maxContentLength(524288)

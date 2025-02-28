@@ -106,9 +106,13 @@ public class JanusGraphClient extends DB{
 		return true;
 	}
 
-	public static void main(String[] args) throws DBException {
+	public static void main(String[] args) throws Exception {
 		JanusGraphClient jclient = new JanusGraphClient();
 		jclient.init();
+		System.out.println(jclient.g.V().has("userid", 0).valueMap().value());
+		System.out.println("init_successfully");
+		jclient.client.close();
+		jclient.g.close();
 	}
 
 	private void cleanupAllConnections() {
@@ -277,7 +281,6 @@ public class JanusGraphClient extends DB{
 				System.err.println("Multiple edges found.");
 				return SUCCESS;
 			}
-			return SUCCESS;
 			return SUCCESS;
 		} catch (Exception e) {
 			e.printStackTrace();

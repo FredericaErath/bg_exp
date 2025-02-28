@@ -47,13 +47,30 @@ while sleep 2; do
     fi
 done
 
+operationcount_file="workloads/$ValidationAction"
+if [ ! -f "$operationcount_file" ]; then
+    echo "Error: $operationcount_file not found!" | tee -a "$LOG_FILE"
+fi
+
+expected_actions=$(grep "^operationcount=" "$operationcount_file" | cut -d '=' -f2)
 java -cp "build/classes:lib/*" edu.usc.bg.BGMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -threads "$threads_variants" -db janusgraph.JanusGraphClient -P "workloads/$ValidationAction" -s true 2>&1 | tee $TMP_OUTPUT2 &
 PID2=$!
 
 # 运行 10 分钟后终止
-sleep 600
-echo "Stopping validation process $PID2 after 10 minutes..." | tee -a "$LOG_FILE"
-kill -9 "$PID2"
+while sleep 2; do
+    ACTIONS_LINE=$(grep -o "[0-9]\+ sec: [0-9]\+ actions; .*" $TMP_OUTPUT2 | tail -n 1)
+    if [[ -n "$ACTIONS_LINE" ]]; then
+        actual_actions=$(echo "$ACTIONS_LINE" | awk '{print $3}')
+        if [[ "$actual_actions" -eq "$expected_actions" ]]; then
+            echo "Detected '$ACTIONS_LINE' with expected actions $expected_actions - Killing process $PID2"
+            kill -9 "$PID2"
+
+            # 记录日志
+            echo "Result: $ACTIONS_LINE" | tee -a "$LOG_FILE"
+            break
+        fi
+    fi
+done
 
 
 echo "Starting validation with $threads_variants threads..." | tee -a "$LOG_FILE"

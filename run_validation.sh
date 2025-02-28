@@ -15,6 +15,8 @@ PopulateAction="populateDB_1000"
 ValidationAction="SymmetricMixDelegateAction"
 
 threads_variants=1
+threadcount=1
+validationthreads=100
 
 echo "Removing old read and update files..." | tee -a "$LOG_FILE"
 sudo rm -f read*.txt
@@ -56,7 +58,7 @@ kill -9 "$PID2"
 
 echo "Starting validation with $threads_variants threads..." | tee -a "$LOG_FILE"
 
-java -cp "build/classes:lib/*" edu.usc.bg.validator.ValidationMainClass onetime -t edu.usc.bg.workloads.CoreWorkLoad -db janusgraph.JanusGraphClient -P "workloads/$ValidationAction" -threads "$threads_variants" 2>&1 | tee "$TMP_OUTPUT3" &
+java -cp "build/classes:lib/*" edu.usc.bg.validator.ValidationMainClass -t edu.usc.bg.workloads.CoreWorkLoad -threadcount "$threadcount" -validationthreads "$validationthreads" -db janusgraph.JanusGraphClient -P workloads/SymmetricMixDelegateAction -threads "$threads_variants" 2>&1 | tee "$TMP_OUTPUT3" &
 PID3=$!
 
 echo "Started validation process with PID: $PID3"

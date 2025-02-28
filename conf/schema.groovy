@@ -32,10 +32,10 @@ if (!userIndexExists) {
 
 mgmt = graph.openManagement()
 // 检查顶点中心索引 'friendship_status_index' 是否存在
-friendship = mgmt.getEdgeLabel("friendship") ?: mgmt.makeEdgeLabel("friendship").make()
+friendship = mgmt.getEdgeLabel("friendship") ?: mgmt.makeEdgeLabel("friendship").directed().multiplicity(Multiplicity.SIMPLE).make()
 
 // 获取或创建属性键 'status'
-status = mgmt.getPropertyKey("status") ?: mgmt.makePropertyKey("status").dataType(String.class).make()
+status = mgmt.getPropertyKey("status") ?: mgmt.makePropertyKey("status").dataType(String.class).cardinality(Cardinality.SINGLE).make()
 
 // 检查顶点中心索引 'friendship_status_index' 是否存在
 friendshipIndexExists = mgmt.getRelationIndex(friendship, 'friendship_status_index') != null

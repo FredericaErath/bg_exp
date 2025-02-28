@@ -16,7 +16,7 @@ ValidationAction="SymmetricMixDelegateAction"
 
 threads_variants=1
 threadcount=1
-validationthreads=100
+validationthreads=10000
 
 echo "Removing old read and update files..." | tee -a "$LOG_FILE"
 sudo rm -f read*.txt
